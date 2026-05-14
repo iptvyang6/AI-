@@ -1,12 +1,18 @@
-# ... 省略 on 和 permissions 等 ...
+name: Daily AI Report
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -25,7 +31,7 @@ jobs:
 
       - name: Generate report
         env:
-          DEEPSK: ${{ secrets.DEEPSK }}   # 这里注入你的 API Key
+          DEEPSK: ${{ secrets.DEEPSK }}
         run: python generate.py
 
       - name: Setup Pages
@@ -34,7 +40,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'   # 确保包含刚生成的 index.html
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
