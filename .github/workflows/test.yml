@@ -1,19 +1,41 @@
-name: AI News
-
-on:
-  workflow_dispatch:
+# ... 省略 on 和 permissions 等 ...
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Run Python Script
-        run: python generate_news.py
+      - name: Install dependencies
+        run: pip install openai
+
+      - name: Generate report
+        env:
+          DEEPSK: ${{ secrets.DEEPSK }}   # 这里注入你的 API Key
+        run: python generate.py
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'   # 确保包含刚生成的 index.html
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
