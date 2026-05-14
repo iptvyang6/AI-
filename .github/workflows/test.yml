@@ -32,7 +32,7 @@ jobs:
       - name: Generate report
         env:
           DEEPSK: ${{ secrets.DEEPSK }}
-        run: python generate.py
+        run: python generate_news.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
