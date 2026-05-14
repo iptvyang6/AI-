@@ -4,18 +4,15 @@ import re
 from datetime import datetime
 from openai import OpenAI
 
-# 1. 从环境变量读取 API Key
 api_key = os.getenv("DEEPSK")
 if not api_key:
     raise RuntimeError("环境变量 DEEPSK 未设置")
 
-# 2. 初始化 DeepSeek 客户端（兼容 OpenAI 接口）
 client = OpenAI(
     api_key=api_key,
     base_url="https://api.deepseek.com"
 )
 
-# 3. 定义提示词：让 DeepSeek 返回结构化 JSON
 prompt = """你是一名全球 AI 行业分析师。请根据今天（2026-05-14）的最新信息，生成一份中文的“全球AI每日情报”。
 
 严格按下面的 JSON 格式输出，不要添加任何额外解释：
@@ -38,34 +35,29 @@ prompt = """你是一名全球 AI 行业分析师。请根据今天（2026-05-14
   "daily_summary": "一段50字以内的整体摘要"
 }"""
 
-# 4. 调用 DeepSeek
-response = client.chat.completions.create(
-    model="deepseek-chat",
-    messages=[{"role": "user", "content": prompt}],
-    temperature=0.7,
-    max_tokens=2000
-)
-
-content = response.choices[0].message.content.strip()
-
-# 5. 清理可能的 Markdown 代码块标记
-if content.startswith("```"):
-    content = re.sub(r"```\w*\n?|```", "", content).strip()
-
-# 6. 解析 JSON
+# ------ 调用 API，带容错 ------
 try:
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+        max_tokens=2000
+    )
+    content = response.choices[0].message.content.strip()
+    if content.startswith("```"):
+        content = re.sub(r"```\w*\n?|```", "", content).strip()
     data = json.loads(content)
-except json.JSONDecodeError:
-    # 如果解析失败，用备用数据防止生成空白页
+except Exception as e:
+    print(f"API 调用失败：{e}")
     data = {
         "stats": {"news_count": 0, "tools_count": 0, "agents_count": 0, "models_count": 0},
-        "top_news": [],
+        "top_news": [{"title": "数据获取失败", "summary": f"API 错误：{e}"}],
         "new_tools": [],
-        "trends": [],
-        "daily_summary": "今日数据加载失败，请稍后再试。"
+        "trends": [{"keyword": "请检查 DeepSeek 余额", "change": "0%"}],
+        "daily_summary": f"今日情报生成失败，请检查后台日志。错误信息：{e}"
     }
+# ------ 容错结束 ------
 
-# 7. 用数据构建 HTML（版面和你之前给的静态模板完全一致，但动态填充）
 stats = data["stats"]
 news_list = data["top_news"]
 tools_list = data["new_tools"]
@@ -96,7 +88,6 @@ for item in trends_list:
         <span>↑{item['change']}</span>
     </div>"""
 
-# 如果趋势列表为空，给个默认提示
 if not trends_html:
     trends_html = '<div class="flex justify-between"><span>暂无数据</span></div>'
 
@@ -159,4 +150,4 @@ body {{ background:#0b1020; color:white; font-family:sans-serif; }}
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(html)
 
-print("index.html updated with AI-generated content")
+print("index.html updated (with AI-generated content or error fallback)")
